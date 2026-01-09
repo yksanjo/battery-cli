@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""battery: Show battery status (macOS)."""
+
+import subprocess
+import re
+import sys
+
+
+def get_battery_info():
+    """Get battery info from pmset."""
+    result = subprocess.run(
+        ["pmset", "-g", "batt"],
+        capture_output=True, text=True
+    )
+    return result.stdout
+
+
+def parse_battery(output):
+    """Parse pmset output."""
+    # Find percentage
+    pct_match = re.search(r"(\d+)%", output)
+    pct = int(pct_match.group(1)) if pct_match else None
+
+    # Find time remaining
+    time_match = re.search(r"(\d+:\d+) remaining", output)
+    time_left = time_match.group(1) if time_match else None
+
+    # Check charging status
+    charging = "charging" in output.lower() or "ac power" in output.lower()
+    charged = "charged" in output.lower()
+
+    return pct, time_left, charging, charged
+
+
+def get_icon(pct, charging):
+    """Get battery icon."""
+    if charging:
+        return "⚡"
+    elif pct >= 80:
+        return "🔋"
+    elif pct >= 40:
+        return "🔋"
+    elif pct >= 20:
+        return "🪫"
+    else:
+        return "🪫"
+
+
+def main():
+    if sys.platform != "darwin":
+        print("macOS only, sorry!")
+        return
+
+    output = get_battery_info()
+    pct, time_left, charging, charged = parse_battery(output)
+
+    if pct is None:
+        print("No battery found (desktop Mac?)")
+        return
+
+    icon = get_icon(pct, charging)
+
+    parts = [f"{icon} {pct}%"]
+
+    if time_left:
+        h, m = time_left.split(":")
+        parts.append(f"{h}h {m}m remaining")
+
+    if charged:
+        parts.append("Charged")
+    elif charging:
+        parts.append("Charging")
+
+    print(" | ".join(parts))
+
+
+if __name__ == "__main__":
+    main()
